@@ -21,7 +21,7 @@ class JobApplicationOut(JobApplicationBase):
     applied_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class JobBase(BaseModel):
@@ -43,13 +43,13 @@ class JobOut(JobBase):
     applications: List[JobApplicationOut] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
-    is_recruiter: Optional[bool] = False
+    role_id: int  # 1->Admin, 2->Candidate, 3->Recruiter
     skills: Optional[str] = None
     bio: Optional[str] = None
 
@@ -74,20 +74,6 @@ class UserCreate(UserBase):
         if not v.strip():
             raise ValueError("Password cannot be empty or blank")
         return v
-
-
-class UserOut(BaseModel):
-    id: int
-    userUlId: str
-    email: EmailStr
-    full_name: str
-    is_recruiter: bool
-    skills: Optional[str]
-    bio: Optional[str]
-    created_at: datetime
-
-    class Config:
-        orm_mode = True
 
 
 class UserLogin(BaseModel):

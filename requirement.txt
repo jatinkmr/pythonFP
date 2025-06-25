@@ -26,3 +26,4 @@ fastapi
 fastapi[standard]
 schemas
 python-ulid
+pyjwt
