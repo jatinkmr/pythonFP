@@ -11,6 +11,14 @@ import json
 router = APIRouter()
 
 
+@router.get("/")
+def testAuthRoute():
+    return Response(
+        status_code=status.HTTP_200_OK,
+        media_type="application/json",
+        content=json.dumps({"message": "Auth route is running..."}),
+    )
+
 @router.post("/register")
 def registerUser(user: schemas.UserCreate, db: Session = Depends(get_db)):
     try:
