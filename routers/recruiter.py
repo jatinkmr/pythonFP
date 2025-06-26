@@ -192,3 +192,91 @@ def getRecruiterJobs(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unable to fetch job listing due to: {str(e)}",
         )
+
+
+@router.get("/jobs/{jobId}")
+def fetchRecruiterJobInfo(
+    jobId: str,
+    current_user: models.User = Depends(get_current_recruiter),
+    db: Session = Depends(get_db),
+):
+    try:
+        job = (
+            db.query(models.Job)
+            .filter(
+                models.Job.ulid == jobId,
+                models.Job.recruiter_id == current_user.userUlId,
+            )
+            .first()
+        )
+
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Job not found or you do not have permission to access this job"
+            )
+
+        responseData = {
+            "message": "Job info available",
+            "data": {
+                "id": job.ulid,
+                "title": job.title,
+                "description": job.description,
+                "requirements": job.requirements,
+                "created_at": (
+                    job.created_at.isoformat()
+                    if hasattr(job, "created_at")
+                    else None
+                )
+            }
+        }
+
+        return Response(
+            status_code=status.HTTP_200_OK,
+            content=json.dumps(responseData),
+            media_type="application/json",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to fetch job info due to: {str(e)}",
+        )
+
+
+@router.delete("/jobs/{jobId}")
+def deleteRecruiterJob(
+    jobId: str,
+    current_user: models.User = Depends(get_current_recruiter),
+    db: Session = Depends(get_db),
+):
+    try:
+        job = (
+            db.query(models.Job)
+            .filter(
+                models.Job.ulid == jobId,
+                models.Job.recruiter_id == current_user.userUlId,
+            )
+            .first()
+        )
+
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job not found or you do not have permission to delete this job",
+            )
+
+        db.delete(job)
+        db.commit()
+
+        return Response(
+            status_code=status.HTTP_200_OK,
+            content=json.dumps({"message": "Job deleted successfully"}),
+            media_type="application/json",
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Job deletion failed due to: {str(e)}",
+        )
