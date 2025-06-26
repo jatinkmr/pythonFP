@@ -86,7 +86,6 @@ def fetchJobListingRoute(page: int = 1, limit: int = 10, db: Session = Depends(g
 
 
 @router.get("/jobs/{jobId}")
-@router.get("/jobs/{jobId}")
 def fetchRecruiterJobInfo(
     jobId: str,
     db: Session = Depends(get_db),
