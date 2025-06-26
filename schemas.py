@@ -94,3 +94,27 @@ class UserLogin(BaseModel):
         if not v.strip():
             raise ValueError("Password cannot be empty or blank")
         return v
+
+
+class JobUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    requirements: Optional[str] = None
+
+    @validator("title")
+    def title_validator(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError("Job Title cannot be empty or blank")
+        return v
+
+    @validator("description")
+    def description_validator(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError("Job Description cannot be empty or blank")
+        return v
+
+    @validator("requirements")
+    def requirement_validator(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError("Job Requirement cannot be empty or blank")
+        return v

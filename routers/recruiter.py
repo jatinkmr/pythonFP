@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy import Column
 from sqlalchemy.orm import Session
 from database import get_db
 import models, schemas
@@ -213,7 +214,7 @@ def fetchRecruiterJobInfo(
         if not job:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Job not found or you do not have permission to access this job"
+                detail="Job not found or you do not have permission to access this job",
             )
 
         responseData = {
@@ -224,11 +225,9 @@ def fetchRecruiterJobInfo(
                 "description": job.description,
                 "requirements": job.requirements,
                 "created_at": (
-                    job.created_at.isoformat()
-                    if hasattr(job, "created_at")
-                    else None
-                )
-            }
+                    job.created_at.isoformat() if hasattr(job, "created_at") else None
+                ),
+            },
         }
 
         return Response(
@@ -279,4 +278,66 @@ def deleteRecruiterJob(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Job deletion failed due to: {str(e)}",
+        )
+
+
+@router.patch("/jobs/{jobId}")
+def updateRecruiterJobs(
+    jobId: str,
+    job_data: schemas.JobUpdate,
+    current_user: models.User = Depends(get_current_recruiter),
+    db: Session = Depends(get_db),
+):
+    try:
+        job = (
+            db.query(models.Job)
+            .filter(
+                models.Job.ulid == jobId,
+                models.Job.recruiter_id == current_user.userUlId,
+            )
+            .first()
+        )
+
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job not found or you do not have permission to update this job",
+            )
+
+        # Update job fields
+        if job_data.title is not None:
+            job.title = models.Job.title.type.python_type(job_data.title)
+        if job_data.description is not None:
+            job.description = models.Job.description.type.python_type(
+                job_data.description
+            )
+        if job_data.requirements is not None:
+            job.requirements = models.Job.requirements.type.python_type(
+                job_data.requirements
+            )
+
+        db.commit()
+        db.refresh(job)
+
+        responseData = {
+            "message": "Job updated successfully",
+            "data": {
+                "id": job.ulid,
+                "title": job.title,
+                "description": job.description,
+                "requirements": job.requirements,
+            },
+        }
+
+        return Response(
+            status_code=status.HTTP_200_OK,
+            content=json.dumps(responseData),
+            media_type="application/json",
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to update the job info due to: {str(e)}",
         )
