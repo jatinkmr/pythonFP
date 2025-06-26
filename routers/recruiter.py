@@ -148,7 +148,7 @@ def getRecruiterJobs(
         jobs = (
             db.query(models.Job)
             .filter(models.Job.recruiter_id == current_user.userUlId)
-            .order_by(models.Job.created_at.desc())  # Order by most recent first
+            .order_by(models.Job.created_at.desc())
             .offset(offset)
             .limit(limit)
             .all()
