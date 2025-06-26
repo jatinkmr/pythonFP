@@ -1,3 +1,4 @@
+from multiprocessing import Value
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 from datetime import datetime
@@ -8,7 +9,7 @@ class JobApplicationBase(BaseModel):
 
 
 class JobApplicationCreate(JobApplicationBase):
-    job_id: int
+    job_id: str
     candidate_id: int
     ulid: str
 
@@ -16,34 +17,36 @@ class JobApplicationCreate(JobApplicationBase):
 class JobApplicationOut(JobApplicationBase):
     id: int
     ulid: str
-    job_id: int
-    candidate_id: int
+    job_id: str
+    candidate_id: str
     applied_at: datetime
 
     class Config:
         from_attributes = True
 
 
-class JobBase(BaseModel):
+class JobCreate(BaseModel):
     title: str
     description: str
     requirements: str
 
+    @validator("title")
+    def title_validator(cls, v):
+        if not v.strip():
+            raise ValueError("Job Title cannot be empty or blank")
+        return v
 
-class JobCreate(JobBase):
-    ulid: str
-    recruiter_id: int
+    @validator("description")
+    def description_validator(cls, v):
+        if not v.strip():
+            raise ValueError("Job Description cannot be empty or blank")
+        return v
 
-
-class JobOut(JobBase):
-    id: int
-    ulid: str
-    recruiter_id: int
-    created_at: datetime
-    applications: List[JobApplicationOut] = []
-
-    class Config:
-        from_attributes = True
+    @validator("requirements")
+    def requirement_validator(cls, v):
+        if not v.strip():
+            raise ValueError("Job Requirement cannot be empty or blank")
+        return v
 
 
 class UserBase(BaseModel):

@@ -30,7 +30,7 @@ class Job(Base):
     title = Column(String, index=True)
     description = Column(Text)
     requirements = Column(Text)
-    recruiter_id = Column(Integer)
+    recruiter_id = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -44,8 +44,8 @@ class JobApplication(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     ulid = Column(String, index=True)
-    job_id = Column(Integer)
-    candidate_id = Column(Integer)
+    job_id = Column(String)
+    candidate_id = Column(String)
     status = Column(String, default="pending")
     applied_at = Column(DateTime, default=datetime.utcnow)
 
