@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models, schemas
 from utils.hash import hash_password, verify_password
-from utils.token import createRecruiterToken, createCandidateToken, verifyRecruiterToken
+from utils.token import verifyRecruiterToken
 from ulid import ULID
 import json
 from typing import Optional

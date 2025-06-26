@@ -5,11 +5,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models, schemas
 from utils.hash import hash_password, verify_password
-from utils.token import createCandidateToken
+from utils.token import verifyCandidateToken
 from ulid import ULID
 import json
 from typing import Optional
 import math
+from datetime import datetime
 
 router = APIRouter()
 
@@ -121,4 +122,106 @@ def fetchRecruiterJobInfo(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unable to fetch job info due to: {str(e)}",
+        )
+
+
+def get_current_candidate(
+    authorization: Optional[str] = Header(None), db: Session = Depends(get_db)
+):
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header missing",
+        )
+
+    # Extract token from "Bearer <token>" format
+    try:
+        scheme, token = authorization.split()
+        if scheme.lower() != "bearer":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication scheme",
+            )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization header format",
+        )
+
+    # Verify the token
+    token_result = verifyCandidateToken(token)
+    if not token_result["valid"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=token_result["error"]
+        )
+
+    # Get user from database
+    user_id = token_result["data"]["userUlId"]
+    user = db.query(models.User).filter(models.User.userUlId == user_id).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
+    if user.role_id != 2:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Recruiter role required",
+        )
+
+    return user
+
+
+@router.post("/jobs-application/{jobId}")
+def sendJobApplication(
+    jobId: str,
+    current_user: models.User = Depends(get_current_candidate),
+    db: Session = Depends(get_db),
+):
+    try:
+        job = db.query(models.Job).filter(models.Job.ulid == jobId).first()
+
+        if not job:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Job not found or you do not have permission to access this job",
+            )
+
+        isCandidateAlreadyApplied = (
+            db.query(models.JobApplication)
+            .filter(
+                models.JobApplication.candidate_id == current_user.userUlId,
+                models.JobApplication.job_id == jobId,
+            )
+            .first()
+        )
+
+        if isCandidateAlreadyApplied:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"You've already applied for the same job previously!!"
+            )
+
+        newApplication = models.JobApplication(
+            ulid=str(ULID()),
+            job_id=jobId,
+            candidate_id=current_user.userUlId,
+            applied_at=datetime.utcnow(),
+        )
+
+        db.add(newApplication)
+        db.commit()
+
+        return Response(
+            status_code=status.HTTP_201_CREATED,
+            content=json.dumps({"message": "Job application submitted successfully!!"}),
+            media_type="application/json",
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to apply due to: {str(e)}",
         )
