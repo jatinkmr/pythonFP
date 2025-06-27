@@ -1,31 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
-from fastapi.encoders import jsonable_encoder
-from sqlalchemy import Column
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from database import get_db
+from middlewares.candidate import get_current_candidate
 import models, schemas
-from utils.hash import hash_password, verify_password
-from utils.token import verifyCandidateToken
-from ulid import ULID
-import json
-from typing import Optional
 import math
 from datetime import datetime
+from ulid import ULID
 
-router = APIRouter()
-
-
-@router.get("/")
-def testCandidateRoute():
-    return Response(
-        status_code=status.HTTP_200_OK,
-        media_type="application/json",
-        content=json.dumps({"message": "Candidate route is running..."}),
-    )
+from database import get_db
 
 
-@router.get("/jobs")
-def fetchJobListingRoute(page: int = 1, limit: int = 10, db: Session = Depends(get_db)):
+def fetchJobListing(page: int = 1, limit: int = 10, db: Session = Depends(get_db)):
     try:
         if page < 1:
             page = 1
@@ -63,7 +47,7 @@ def fetchJobListingRoute(page: int = 1, limit: int = 10, db: Session = Depends(g
 
         total_pages = math.ceil(totalCount / limit) if totalCount > 0 else 1
 
-        response_data = {
+        return {
             "message": "Jobs list retrieved successfully",
             "data": jobsData,
             "pagination": {
@@ -73,31 +57,18 @@ def fetchJobListingRoute(page: int = 1, limit: int = 10, db: Session = Depends(g
                 "total_pages": total_pages,
             },
         }
-
-        return Response(
-            status_code=status.HTTP_200_OK,
-            content=json.dumps(response_data),
-            media_type="application/json",
-        )
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to fetch job list due to: {str(e)}",
-        )
+        raise e
 
 
-@router.get("/jobs/{jobId}")
-def fetchRecruiterJobInfo(
-    jobId: str,
-    db: Session = Depends(get_db),
-):
+def fetchJobInfo(jobId: str, db: Session = Depends(get_db)):
     try:
         job = db.query(models.Job).filter(models.Job.ulid == jobId).first()
 
         if not job:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Job not found or you do not have permission to access this job",
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job not found",
             )
 
         responseData = {
@@ -113,79 +84,19 @@ def fetchRecruiterJobInfo(
             },
         }
 
-        return Response(
-            status_code=status.HTTP_200_OK,
-            content=json.dumps(responseData),
-            media_type="application/json",
-        )
+        return responseData
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to fetch job info due to: {str(e)}",
-        )
+        raise e
 
 
-def get_current_candidate(
-    authorization: Optional[str] = Header(None), db: Session = Depends(get_db)
-):
-    if not authorization:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header missing",
-        )
-
-    # Extract token from "Bearer <token>" format
-    try:
-        scheme, token = authorization.split()
-        if scheme.lower() != "bearer":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication scheme",
-            )
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format",
-        )
-
-    # Verify the token
-    token_result = verifyCandidateToken(token)
-    if not token_result["valid"]:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail=token_result["error"]
-        )
-
-    # Get user from database
-    user_id = token_result["data"]["userUlId"]
-    user = db.query(models.User).filter(models.User.userUlId == user_id).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
-        )
-
-    if user.role_id != 2:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied. Recruiter role required",
-        )
-
-    return user
-
-
-@router.post("/jobs-application/{jobId}")
-def sendJobApplication(
-    jobId: str,
-    current_user: models.User = Depends(get_current_candidate),
-    db: Session = Depends(get_db),
-):
+def sendJobApplication(jobId: str, current_user: models.User, db: Session=Depends(get_db)):
     try:
         job = db.query(models.Job).filter(models.Job.ulid == jobId).first()
 
         if not job:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Job not found or you do not have permission to access this job",
+                detail="Job not found",
             )
 
         isCandidateAlreadyApplied = (
@@ -213,27 +124,13 @@ def sendJobApplication(
         db.add(newApplication)
         db.commit()
 
-        return Response(
-            status_code=status.HTTP_201_CREATED,
-            content=json.dumps({"message": "Job application submitted successfully!!"}),
-            media_type="application/json",
-        )
+        return
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to apply due to: {str(e)}",
-        )
+        raise e
 
-
-@router.get("/applied-jobs")
-def fetchCandidateAppliedJobs(
-    page: int = 1,
-    limit: int = 10,
-    current_user: models.User = Depends(get_current_candidate),
-    db: Session = Depends(get_db),
-):
+def fetchCandidateAppliedJobs(page: int = 1, limit: int = 10, current_user: models.User = Depends(get_current_candidate), db: Session = Depends(get_db)):
     try:
         if page < 1:
             page = 1
@@ -291,15 +188,8 @@ def fetchCandidateAppliedJobs(
             },
         }
 
-        return Response(
-            status_code=status.HTTP_200_OK,
-            content=json.dumps(response_data),
-            media_type="application/json",
-        )
+        return response_data
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unable to fetch applied jobs due to: {str(e)}",
-        )
+        raise e
