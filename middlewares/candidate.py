@@ -2,7 +2,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, Header, status
 import models
-from database import get_db
+from config.database import get_db
 from utils.token import verifyCandidateToken
 
 

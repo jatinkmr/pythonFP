@@ -21,4 +21,4 @@ def get_db():
         db.close()
 
 
-print("Database configuration successful!")
+print("🚀 Database connected successfully!!")

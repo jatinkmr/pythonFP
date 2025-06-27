@@ -118,3 +118,36 @@ class JobUpdate(BaseModel):
         if v is not None and not v.strip():
             raise ValueError("Job Requirement cannot be empty or blank")
         return v
+
+
+class ForgotPassword(BaseModel):
+    email: str
+
+    @validator("email")
+    def email_validator(cls, v):
+        if not v.strip():
+            raise ValueError("Email cannot be empty")
+        return v
+
+
+class ResetUserPassword(BaseModel):
+    ulid: str
+    newPassword: str
+    confirmPassword: str
+
+    @validator("ulid")
+    def fields_must_not_be_blank(cls, v):
+        if not v.strip():
+            raise ValueError(f"ulid cannot be empty or blank")
+        return v
+
+    @validator("newPassword")
+    def new_password_validator(cls, v):
+        if not v.strip():
+            raise ValueError(f"new password cannot be empty or blank")
+
+    @validator("confirmPassword")
+    def passwords_must_match(cls, v, values):
+        if "newPassword" in values and v != values["newPassword"]:
+            raise ValueError("newPassword and confirmPassword must be equal")
+        return v

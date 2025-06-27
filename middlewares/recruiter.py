@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Header, status
 from sqlalchemy.orm import Session
 
-from database import get_db
+from config.database import get_db
 import models
 from utils.token import verifyRecruiterToken
 

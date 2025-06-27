@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
-from database import get_db
+from config.database import get_db
 from middlewares.candidate import get_current_candidate
 import models
 import json

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
 from sqlalchemy.orm import Session
-from database import get_db
+from config.database import get_db
 from middlewares.recruiter import get_current_recruiter
 import models, schemas
 from utils.token import verifyRecruiterToken

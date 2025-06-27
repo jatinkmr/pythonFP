@@ -6,7 +6,7 @@ import math
 from datetime import datetime
 from ulid import ULID
 
-from database import get_db
+from config.database import get_db
 
 
 def fetchJobListing(page: int = 1, limit: int = 10, db: Session = Depends(get_db)):
