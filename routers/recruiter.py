@@ -1,10 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
-from fastapi.encoders import jsonable_encoder
-from sqlalchemy import Column
 from sqlalchemy.orm import Session
 from database import get_db
 import models, schemas
-from utils.hash import hash_password, verify_password
 from utils.token import verifyRecruiterToken
 from ulid import ULID
 import json
@@ -342,6 +339,7 @@ def updateRecruiterJobs(
             detail=f"Unable to update the job info due to: {str(e)}",
         )
 
+
 @router.get("/job-applications/{jobId}")
 def fetchJobApplications(
     jobId: str,
@@ -393,19 +391,25 @@ def fetchJobApplications(
 
         jobAppData = []
         for jobApplication, candidate in jobApplications:
-            jobAppData.append(
-                {
-                    "application_id": jobApplication.ulid,
-                    "candidate_name": candidate.full_name,
-                    "candidate_email": candidate.email,
-                    "status": jobApplication.status,
-                    "applied_at": (
-                        jobApplication.applied_at.isoformat()
-                        if jobApplication.applied_at
-                        else None
-                    ),
-                }
-            )
+            applicationData = {
+                "application_id": jobApplication.ulid,
+                "candidate_name": candidate.full_name,
+                "candidate_email": candidate.email,
+                "status": jobApplication.status,
+                "applied_at": (
+                    jobApplication.applied_at.isoformat()
+                    if jobApplication.applied_at
+                    else None
+                ),
+            }
+
+            if hasattr(candidate, "bio"):
+                applicationData["candidate_bio"] = candidate.bio
+
+            if hasattr(candidate, "skills"):
+                applicationData["skills"] = candidate.skills
+
+            jobAppData.append(applicationData)
 
         totalPages = math.ceil(totalCount / limit) if totalCount > 0 else 1
 
@@ -425,8 +429,80 @@ def fetchJobApplications(
             content=json.dumps(responseData),
             media_type="application/json",
         )
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unable to fetch the list of Candidate due to: {str(e)}",
+        )
+
+
+@router.patch("/job-application/{applicationId}/status/{latestStatus}")
+def updateJobApplicationStatus(
+    applicationId: str,
+    latestStatus: str,
+    current_user: models.User = Depends(get_current_recruiter),
+    db: Session = Depends(get_db),
+):
+    try:
+        allowedStatuses = {"accepted", "rejected"}
+        if latestStatus not in allowedStatuses:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid status!!",
+            )
+
+        applicationInfo = (
+            db.query(models.JobApplication)
+            .filter(models.JobApplication.ulid == applicationId)
+            .first()
+        )
+
+        if applicationInfo is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Job application not found",
+            )
+
+        if applicationInfo.status != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot update status. Current status of requested application is {applicationInfo.status} already.",
+            )
+
+        isJobRelatedToRecruiter = (
+            db.query(models.Job)
+            .filter(
+                models.Job.ulid == applicationInfo.job_id,
+                models.Job.recruiter_id == current_user.userUlId,
+            )
+            .first()
+        )
+
+        if isJobRelatedToRecruiter is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Job is not related with the current recruiter",
+            )
+
+        applicationInfo.status = models.JobApplication.status.type.python_type(
+            latestStatus
+        )
+
+        db.commit()
+
+        return Response(
+            status_code=status.HTTP_200_OK,
+            content=json.dumps(
+                {"message": "Job application status updated successfully!!"}
+            ),
+            media_type="application/json",
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to update the status of job application due to: {str(e)}",
         )
