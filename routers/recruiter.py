@@ -341,3 +341,92 @@ def updateRecruiterJobs(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unable to update the job info due to: {str(e)}",
         )
+
+@router.get("/job-applications/{jobId}")
+def fetchJobApplications(
+    jobId: str,
+    page: int = 1,
+    limit: int = 10,
+    current_user: models.User = Depends(get_current_recruiter),
+    db: Session = Depends(get_db),
+):
+    try:
+        isJobRelatedToRecruiter = (
+            db.query(models.Job)
+            .filter(
+                models.Job.ulid == jobId,
+                models.Job.recruiter_id == current_user.userUlId,
+            )
+            .first()
+        )
+
+        if not isJobRelatedToRecruiter:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Provided job not linked with current recruiter",
+            )
+
+        if page < 1:
+            page = 1
+
+        if limit < 1 or limit > 100:
+            limit = 10
+
+        offset = (page - 1) * limit
+
+        totalCount = (
+            db.query(models.JobApplication)
+            .filter(models.JobApplication.job_id == jobId)
+            .count()
+        )
+
+        jobApplications = (
+            db.query(models.JobApplication, models.User)
+            .join(
+                models.User, models.JobApplication.candidate_id == models.User.userUlId
+            )
+            .filter(models.JobApplication.job_id == jobId)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        jobAppData = []
+        for jobApplication, candidate in jobApplications:
+            jobAppData.append(
+                {
+                    "application_id": jobApplication.ulid,
+                    "candidate_name": candidate.full_name,
+                    "candidate_email": candidate.email,
+                    "status": jobApplication.status,
+                    "applied_at": (
+                        jobApplication.applied_at.isoformat()
+                        if jobApplication.applied_at
+                        else None
+                    ),
+                }
+            )
+
+        totalPages = math.ceil(totalCount / limit) if totalCount > 0 else 1
+
+        responseData = {
+            "message": "Job Application retrieved successfully",
+            "data": jobAppData,
+            "pagination": {
+                "current_page": page,
+                "per_page": limit,
+                "total_items": totalCount,
+                "total_pages": totalPages,
+            },
+        }
+
+        return Response(
+            status_code=status.HTTP_200_OK,
+            content=json.dumps(responseData),
+            media_type="application/json",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to fetch the list of Candidate due to: {str(e)}",
+        )
