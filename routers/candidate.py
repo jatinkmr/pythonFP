@@ -200,7 +200,7 @@ def sendJobApplication(
         if isCandidateAlreadyApplied:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"You've already applied for the same job previously!!"
+                detail=f"You've already applied for the same job previously!!",
             )
 
         newApplication = models.JobApplication(
@@ -224,4 +224,82 @@ def sendJobApplication(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unable to apply due to: {str(e)}",
+        )
+
+
+@router.get("/applied-jobs")
+def fetchCandidateAppliedJobs(
+    page: int = 1,
+    limit: int = 10,
+    current_user: models.User = Depends(get_current_candidate),
+    db: Session = Depends(get_db),
+):
+    try:
+        if page < 1:
+            page = 1
+
+        if limit < 1 or limit > 100:
+            limit = 10
+
+        offset = (page - 1) * limit
+
+        totalCount = (
+            db.query(models.JobApplication)
+            .filter(models.JobApplication.candidate_id == current_user.userUlId)
+            .count()
+        )
+
+        jobApplications = (
+            db.query(models.JobApplication, models.Job)
+            .join(models.Job, models.JobApplication.job_id == models.Job.ulid)
+            .filter(models.JobApplication.candidate_id == current_user.userUlId)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        applicationsData = []
+        for application, job in jobApplications:
+            applicationsData.append(
+                {
+                    "application_id": application.ulid,
+                    "applied_at": application.applied_at.isoformat(),
+                    "job": {
+                        "id": job.ulid,
+                        "title": job.title,
+                        "description": job.description,
+                        "requirements": job.requirements,
+                        "created_at": (
+                            job.created_at.isoformat()
+                            if hasattr(job, "created_at")
+                            else None
+                        ),
+                    },
+                }
+            )
+
+        total_pages = math.ceil(totalCount / limit) if totalCount > 0 else 1
+
+        response_data = {
+            "message": "Applied jobs retrieved successfully",
+            "data": applicationsData,
+            "pagination": {
+                "current_page": page,
+                "per_page": limit,
+                "total_items": totalCount,
+                "total_pages": total_pages,
+            },
+        }
+
+        return Response(
+            status_code=status.HTTP_200_OK,
+            content=json.dumps(response_data),
+            media_type="application/json",
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to fetch applied jobs due to: {str(e)}",
         )
