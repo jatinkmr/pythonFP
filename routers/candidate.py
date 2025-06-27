@@ -278,7 +278,7 @@ def fetchCandidateAppliedJobs(
                 }
             )
 
-        total_pages = math.ceil(totalCount / limit) if totalCount > 0 else 1
+        totalPages = math.ceil(totalCount / limit) if totalCount > 0 else 1
 
         response_data = {
             "message": "Applied jobs retrieved successfully",
@@ -286,8 +286,8 @@ def fetchCandidateAppliedJobs(
             "pagination": {
                 "current_page": page,
                 "per_page": limit,
-                "total_items": totalCount,
-                "total_pages": total_pages,
+                "totalCount": totalCount,
+                "totalPages": totalPages,
             },
         }
 
