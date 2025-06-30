@@ -343,7 +343,7 @@ def updateJobApplicationStatusService(
                 detail="Job application not found",
             )
 
-        if applicationInfo.status != "pending":
+        if applicationInfo.status != models.JobApplication.status.type.python_type("pending"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Cannot update status. Current status of requested application is {applicationInfo.status} already.",
@@ -372,4 +372,4 @@ def updateJobApplicationStatusService(
     except HTTPException as e:
         raise e
     except Exception as e:
-    raise e
+        raise e
