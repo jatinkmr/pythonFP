@@ -1,16 +1,11 @@
-from dotenv import load_dotenv
-import os
 import jwt
 from datetime import datetime, timedelta
 from jwt import ExpiredSignatureError, InvalidTokenError
 
-load_dotenv()
+from config.settings import CANDIDATE_TOKEN, EXPIRY_MINUTES, RECRUITER_TOKEN
 
-RECRUITER_TOKEN = os.getenv("RECRUITER_TOKEN")
-CANDIDATE_TOKEN = os.getenv("CANDIDATE_TOKEN")
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 ALGORITHM = "HS256"
-EXPIRY_MINUTES = os.getenv("TOKEN_EXPIRY")
+
 
 
 def createRecruiterToken(userUlId: str) -> str:

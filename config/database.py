@@ -2,9 +2,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = (
-    "postgresql://citizix_user:S3cret@localhost/citizix_db?options=-csearch_path=public"
-)
+from config.settings import DATABASE_HOST, DB_NAME, DB_PASSWORD, DB_USERNAME
+
+DATABASE_URL = f"postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DATABASE_HOST}/{DB_NAME}?options=-csearch_path=public"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
