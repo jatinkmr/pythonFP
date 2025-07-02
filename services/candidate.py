@@ -89,7 +89,9 @@ def fetchJobInfo(jobId: str, db: Session = Depends(get_db)):
         raise e
 
 
-def sendJobApplication(jobId: str, current_user: models.User, db: Session=Depends(get_db)):
+def sendJobApplication(
+    jobId: str, current_user: models.User, db: Session = Depends(get_db)
+):
     try:
         job = db.query(models.Job).filter(models.Job.ulid == jobId).first()
 
@@ -130,7 +132,13 @@ def sendJobApplication(jobId: str, current_user: models.User, db: Session=Depend
     except Exception as e:
         raise e
 
-def fetchCandidateAppliedJobs(page: int = 1, limit: int = 10, current_user: models.User = Depends(get_current_candidate), db: Session = Depends(get_db)):
+
+def fetchCandidateAppliedJobs(
+    page: int = 1,
+    limit: int = 10,
+    current_user: models.User = Depends(get_current_candidate),
+    db: Session = Depends(get_db),
+):
     try:
         if page < 1:
             page = 1

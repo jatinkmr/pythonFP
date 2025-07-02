@@ -7,7 +7,6 @@ from config.settings import CANDIDATE_TOKEN, EXPIRY_MINUTES, RECRUITER_TOKEN
 ALGORITHM = "HS256"
 
 
-
 def createRecruiterToken(userUlId: str) -> str:
     expiry_minutes = int(EXPIRY_MINUTES) if EXPIRY_MINUTES is not None else 0
     payload = {
