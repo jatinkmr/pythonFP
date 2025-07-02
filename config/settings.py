@@ -12,3 +12,6 @@ DB_USERNAME = os.getenv("DATABASE_USERNAME")
 DB_PASSWORD = os.getenv("DATABASE_PASSWORD")
 DB_NAME = os.getenv("DATABASE_NAME")
 DATABASE_HOST = os.getenv("DATABASE_HOST")
+
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from config.database import get_db
@@ -7,6 +7,7 @@ from utils.hash import hash_password, verify_password
 from ulid import ULID
 import json
 from services import auth
+from typing import Optional
 
 router = APIRouter()
 
@@ -106,4 +107,48 @@ def resetPassword(reqBody: schemas.ResetUserPassword, db: Session = Depends(get_
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unabel to reset the password due to: {str(e)}",
+        )
+
+
+@router.post("/logout")
+def logout(authorization: Optional[str] = Header(None)):
+    """
+    Logout endpoint that immediately expires the provided token.
+    Expects Authorization header with Bearer token.
+    """
+    try:
+        if not authorization:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization header missing"
+            )
+
+        # Extract token from "Bearer <token>" format
+        try:
+            scheme, token = authorization.split()
+            if scheme.lower() != "bearer":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid authentication scheme"
+                )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization header format"
+            )
+
+        # Call logout service
+        result = auth.logoutService(token)
+
+        return Response(
+            status_code=status.HTTP_200_OK,
+            content=json.dumps(result),
+            media_type="application/json",
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Logout failed: {str(e)}",
         )

@@ -185,3 +185,4 @@ def updateJobApplicationStatus(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unable to update the status of job application due to: {str(e)}",
         )
+

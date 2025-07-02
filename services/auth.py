@@ -8,7 +8,7 @@ from config.redis import redisStore
 import schemas, models
 from ulid import ULID
 from utils.hash import hash_password, verify_password
-from utils.token import createRecruiterToken, createCandidateToken
+from utils.token import createRecruiterToken, createCandidateToken, blacklistToken
 from utils.utils import generateUniqueSixDigitToken
 
 
@@ -112,3 +112,32 @@ def resetPassword(reqBody: schemas.ResetUserPassword, db: Session = Depends(get_
         raise e
     except Exception as e:
         raise e
+
+
+def logoutService(token: str):
+    """
+    Logout service that immediately expires the provided token by adding it to blacklist.
+    """
+    try:
+        # Remove 'Bearer ' prefix if present
+        if token.startswith('Bearer '):
+            token = token[7:]
+
+        # Add token to blacklist
+        success = blacklistToken(token)
+
+        if not success:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to logout. Token may already be expired."
+            )
+
+        return {"message": "Logged out successfully"}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Logout failed: {str(e)}"
+        )
