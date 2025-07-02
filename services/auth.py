@@ -80,8 +80,6 @@ def forgotPasswordService(
             tokenToBeSend = generateUniqueSixDigitToken()
             redisStore.set(str(isUserExist.userUlId), tokenToBeSend, 600)  # 10 minutes
 
-        print(f"tokenToBeSend -> -> {tokenToBeSend}")
-
         return
     except HTTPException as e:
         raise e
@@ -95,7 +93,6 @@ def resetPassword(reqBody: schemas.ResetUserPassword, db: Session = Depends(get_
         if not tokenFromStore:
             raise HTTPException(status_code=400, detail="Link Expired!!")
 
-        print(f"tokenFromStore -> -> {tokenFromStore}")
         isUserExist = (
             db.query(models.User).filter(models.User.userUlId == tokenFromStore).first()
         )
